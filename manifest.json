@@ -1,0 +1,52 @@
+{
+  "manifest_version": 3,
+  "name": "Bilibili Volume Booster",
+  "description": "Boosts Bilibili tab audio above the player volume limit.",
+  "version": "0.0.1",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png"
+    },
+    "default_popup": "src/popup.html",
+    "default_title": "Bilibili Volume Booster"
+  },
+  "options_page": "src/options.html",
+  "background": {
+    "service_worker": "src/background.js"
+  },
+  "commands": {
+    "toggle-boost": {
+      "suggested_key": {
+        "default": "Alt+Shift+U",
+        "windows": "Alt+Shift+U",
+        "mac": "Alt+Shift+U"
+      },
+      "description": "开关哔哩哔哩音量增强"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*.bilibili.com/*"],
+      "js": ["src/shortcut.js", "src/content.js"],
+      "run_at": "document_end"
+    }
+  ],
+  "host_permissions": [
+    "*://*.bilibili.com/*"
+  ],
+  "permissions": [
+    "activeTab",
+    "notifications",
+    "offscreen",
+    "storage",
+    "tabCapture",
+    "tabs"
+  ]
+}

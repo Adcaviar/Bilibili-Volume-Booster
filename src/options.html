@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>设置 · 哔哩哔哩音量增强</title>
+    <link rel="stylesheet" href="options.css">
+  </head>
+  <body>
+    <main class="page">
+      <header class="page-header">
+        <p class="eyebrow">Bilibili Volume Booster</p>
+        <h1>扩展设置</h1>
+        <p class="subtitle">调整默认行为，设置会自动保存并同步。</p>
+      </header>
+
+      <section class="card">
+        <div class="field">
+          <div class="setting-row">
+            <span class="setting-copy">
+              <label class="setting-title" for="defaultGain">默认增强倍率</label>
+              <span class="setting-desc">关闭智能音量时，手动模式使用的固定倍率。</span>
+            </span>
+            <strong id="defaultGainValue">200%</strong>
+          </div>
+          <input id="defaultGain" type="range" min="1" max="500" step="1" value="200">
+          <div class="scale">
+            <span>1%</span>
+            <span>500%</span>
+          </div>
+        </div>
+
+        <label class="toggle-row">
+          <span class="setting-copy">
+            <span class="setting-title">智能音量</span>
+            <span class="setting-desc">仅根据视频响度自动计算倍率，不受默认倍率影响。</span>
+          </span>
+          <input id="autoAdapt" type="checkbox" checked>
+        </label>
+
+        <div class="field shortcut-field">
+          <div class="setting-row">
+            <span class="setting-copy">
+              <span class="setting-title">快捷键开关</span>
+              <span id="shortcutDesc" class="setting-desc">在哔哩哔哩标签页按下快捷键即可开关增强。</span>
+            </span>
+            <strong id="shortcutValue">Alt + Shift + U</strong>
+          </div>
+          <div id="shortcutInline" class="shortcut-inline" hidden>
+            <button id="shortcutRecord" type="button" class="secondary shortcut-record-button">
+              点击设置快捷键
+            </button>
+            <button id="shortcutClear" type="button" class="secondary shortcut-clear-button">清除</button>
+          </div>
+          <button id="shortcutOpen" type="button" class="secondary shortcut-button" hidden>
+            打开快捷键设置
+          </button>
+        </div>
+
+        <label class="toggle-row">
+          <span class="setting-copy">
+            <span class="setting-title">开关时显示系统通知</span>
+            <span class="setting-desc">开启或关闭增强时弹出桌面通知。</span>
+          </span>
+          <input id="notify" type="checkbox" checked>
+        </label>
+      </section>
+
+      <div class="actions">
+        <button id="reset" type="button" class="secondary">恢复默认</button>
+        <span id="status" class="status" role="status"></span>
+      </div>
+    </main>
+
+    <script src="shortcut.js"></script>
+    <script src="options.js"></script>
+  </body>
+</html>

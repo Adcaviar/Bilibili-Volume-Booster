@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Bilibili Volume Booster</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <main class="popup">
+      <header>
+        <div class="header-text">
+          <p class="eyebrow">Bilibili Volume Booster</p>
+          <h1>哔哩哔哩音量增强</h1>
+        </div>
+        <button id="settings" type="button" class="icon-button" title="设置" aria-label="设置">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" aria-hidden="true">
+            <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" stroke="currentColor" stroke-width="1.8"/>
+            <path d="M19.4 13a7.5 7.5 0 0 0 .05-2l1.7-1.32-1.7-2.95-2.03.82a7.6 7.6 0 0 0-1.73-1l-.3-2.15h-3.4l-.3 2.15c-.62.24-1.2.58-1.73 1l-2.03-.82-1.7 2.95L6.55 11a7.5 7.5 0 0 0 0 2l-1.7 1.32 1.7 2.95 2.03-.82c.53.42 1.11.76 1.73 1l.3 2.15h3.4l.3-2.15c.62-.24 1.2-.58 1.73-1l2.03.82 1.7-2.95L19.4 13Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </header>
+
+      <section class="card">
+        <div class="volume-row">
+          <label for="gain">增强倍率</label>
+          <strong id="gainValue" class="gain-value" title="点击输入倍率">200%</strong>
+        </div>
+        <input id="gain" type="range" min="1" max="500" step="1" value="200">
+        <div class="scale">
+          <span>1%</span>
+          <span id="popupGainMax">500%</span>
+        </div>
+        <label class="toggle-row" for="autoAdapt">
+          <span class="setting-copy">
+            <span class="setting-title">智能音量</span>
+            <span class="setting-desc">根据视频响度自动计算倍率</span>
+          </span>
+          <input id="autoAdapt" type="checkbox" checked>
+        </label>
+      </section>
+
+      <button id="toggle" type="button">开启增强</button>
+      <p id="status" class="status">正在读取当前标签页...</p>
+      <p class="hint">提示：倍率过高可能导致破音，建议从 150%-250% 开始调节。</p>
+    </main>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

@@ -1,0 +1,260 @@
+:root {
+  color-scheme: light;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 300px;
+  color: #172033;
+  background: #f6f8fb;
+}
+
+.popup {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+}
+
+header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.eyebrow {
+  margin: 0 0 4px;
+  color: #fb7299;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.icon-button {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  color: #7a8497;
+  background: #eef1f7;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+
+.icon-button:focus {
+  outline: none;
+}
+
+.icon-button:focus-visible {
+  box-shadow: 0 0 0 2px #dff3fc, 0 0 0 4px #23ade5;
+}
+
+.icon-button:hover {
+  color: #23ade5;
+  background: #dff3fc;
+  transform: translateY(-1px);
+}
+
+.icon-button.active {
+  color: #fff;
+  background: #1f2a44;
+}
+
+.icon-button.active:hover {
+  color: #fff;
+  background: #3a4f78;
+  transform: translateY(-1px);
+}
+
+h1 {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.card {
+  padding: 14px;
+  border: 1px solid #e4e9f2;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgb(23 32 51 / 8%);
+}
+
+.volume-row,
+.scale {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.gain-value {
+  color: #fb7299;
+  font-size: 24px;
+  font-weight: 700;
+  cursor: text;
+}
+
+.gain-value.locked {
+  cursor: default;
+}
+
+.gain-value-input {
+  width: 80px;
+  padding: 0 2px;
+  border: 0;
+  border-bottom: 2px solid #fb7299;
+  border-radius: 0;
+  color: #fb7299;
+  font-size: 24px;
+  font-weight: 700;
+  text-align: right;
+  background: transparent;
+}
+
+.gain-value-input:focus {
+  outline: none;
+}
+
+label {
+  color: #172033;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+input[type="range"] {
+  width: 100%;
+  margin: 16px 0 8px;
+  accent-color: #fb7299;
+  touch-action: none;
+}
+
+input[type="range"].locked {
+  opacity: 0.55;
+  pointer-events: none;
+  cursor: not-allowed;
+}
+
+input[type="range"]:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.scale {
+  color: #7a8497;
+  font-size: 12px;
+}
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #eef1f7;
+  cursor: pointer;
+}
+
+.setting-copy {
+  display: grid;
+  gap: 2px;
+}
+
+.setting-title {
+  color: #172033;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.setting-desc {
+  color: #7a8497;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.toggle-row input {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  border: 2px solid #d8dee8;
+  border-radius: 5px;
+  background: #fff;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.toggle-row input:checked {
+  background: #fb7299;
+  border-color: #fb7299;
+}
+
+.toggle-row input:checked::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 4px;
+  height: 8px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: translate(-50%, -60%) rotate(45deg);
+}
+
+button:not(.icon-button) {
+  width: 100%;
+  border: 0;
+  border-radius: 12px;
+  padding: 12px 14px;
+  color: #fff;
+  background: #fb7299;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 800;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+button:not(.icon-button):hover:not(:disabled) {
+  background: #f25585;
+  transform: translateY(-1px);
+}
+
+button:not(.icon-button).active {
+  background: #1f2a44;
+}
+
+button:not(.icon-button).active:hover:not(:disabled) {
+  background: #2d3a5c;
+  transform: translateY(-1px);
+}
+
+button:not(.icon-button):disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.status,
+.hint {
+  margin: 0;
+  color: #4c5870;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.status.error {
+  color: #c0392b;
+  font-weight: 700;
+}
