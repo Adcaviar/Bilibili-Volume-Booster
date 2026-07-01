@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Bilibili Volume Booster",
-  "description": "Boosts Bilibili tab audio above the player volume limit.",
+  "description": "AdCaviar",
   "version": "0.0.1",
   "icons": {
     "16": "icons/icon16.png",
