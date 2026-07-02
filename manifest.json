@@ -23,11 +23,7 @@
   },
   "commands": {
     "toggle-boost": {
-      "suggested_key": {
-        "default": "Alt+Shift+U",
-        "windows": "Alt+Shift+U",
-        "mac": "Alt+Shift+U"
-      },
+      "suggested_key": "Alt+Shift+U",
       "description": "开关哔哩哔哩音量增强"
     }
   },
@@ -47,6 +43,7 @@
     "notifications",
     "offscreen",
     "storage",
+    "scripting",
     "tabCapture",
     "tabs"
   ]

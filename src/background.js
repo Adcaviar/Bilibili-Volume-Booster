@@ -1,50 +1,106 @@
+importScripts("shortcut.js");
+
 const DEFAULT_GAIN = 2;
 const MAX_GAIN = 5;
 const MIN_GAIN = 0.01;
-const DEFAULT_AUTO_ADAPT = true;
+const DEFAULT_AUTO_ADAPT = false;
 const OFFSCREEN_DOCUMENT_PATH = "src/offscreen.html";
 const OFFSCREEN_DOCUMENT_URL = chrome.runtime.getURL(OFFSCREEN_DOCUMENT_PATH);
 const NOTIFICATION_ID = "boost-status";
-const DEFAULT_SHORTCUT = "Alt+Shift+U";
-const SHORTCUT_STORAGE_KEY = "customShortcut";
+const { DEFAULT_SHORTCUT, normalizeShortcut } = globalThis.BvbShortcut;
+const SHORTCUT_STORAGE_KEY = globalThis.BvbShortcut.STORAGE_KEY;
+const COMMAND_NAME = globalThis.BvbShortcut.COMMAND_NAME;
 const SHORTCUTS_PAGE_URL = "chrome://extensions/shortcuts";
+const CONTENT_SCRIPT_FILES = ["src/shortcut.js", "src/content.js"];
+const BILIBILI_URL_PATTERNS = ["*://*.bilibili.com/*"];
+
+const SHORTCUT_VIA_COMMAND_KEY = "shortcutViaCommand";
 
 const activeTabs = new Set();
 const toggleQueues = new Map();
-const recentToggleAttempts = new Map();
-const TOGGLE_DEDUP_MS = 80;
+const shortcutCoalesce = new Map();
+const SHORTCUT_COALESCE_MS = 250;
 let gainSaveTimer;
 
 chrome.runtime.onInstalled.addListener((details) => {
-  if (details.reason === "install" || details.reason === "update") {
-    chrome.storage.sync.get({ [SHORTCUT_STORAGE_KEY]: null }, (stored) => {
-      if (stored[SHORTCUT_STORAGE_KEY] == null) {
-        chrome.storage.sync.set({ [SHORTCUT_STORAGE_KEY]: DEFAULT_SHORTCUT });
-      }
-    });
-  }
+  void (async () => {
+    if (details.reason === "install") {
+      await chrome.storage.sync.set({
+        defaultGain: DEFAULT_GAIN,
+        notify: true,
+        autoAdapt: DEFAULT_AUTO_ADAPT,
+        [SHORTCUT_STORAGE_KEY]: DEFAULT_SHORTCUT
+      });
+    }
 
-  if (details.reason === "install") {
-    chrome.storage.sync.set({
-      defaultGain: DEFAULT_GAIN,
-      notify: true,
-      autoAdapt: DEFAULT_AUTO_ADAPT,
-      [SHORTCUT_STORAGE_KEY]: DEFAULT_SHORTCUT
-    });
-  }
+    const bound = await syncShortcutHandlingMode();
+
+    if (details.reason === "install" || details.reason === "update") {
+      await ensureBilibiliContentScripts();
+      await broadcastShortcutMode(bound);
+    }
+  })();
+});
+
+chrome.runtime.onStartup.addListener(() => {
+  void (async () => {
+    const bound = await syncShortcutHandlingMode();
+    await broadcastShortcutMode(bound);
+  })();
 });
 
 chrome.commands.onCommand.addListener((command) => {
-  if (command === "toggle-boost") {
-    toggleBoostForActiveTab(undefined, true, "command").catch((error) => {
+  if (command !== COMMAND_NAME) {
+    return;
+  }
+
+  // Request capture while the keyboard command's user gesture is still valid.
+  const streamIdPromise = chrome.tabCapture.getMediaStreamId({});
+
+  streamIdPromise
+    .then((streamId) => toggleBoostForActiveTab(undefined, true, streamId))
+    .catch(() => toggleBoostForActiveTab(undefined, true, null, true))
+    .catch((error) => {
       console.error("Shortcut toggle failed:", error);
     });
-  }
 });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (!message || message.target !== "background") {
     return false;
+  }
+
+  if (message.type === "TOGGLE_BOOST") {
+    const tabId = message.tabId ?? sender?.tab?.id;
+
+    if (Number.isInteger(tabId) && activeTabs.has(tabId)) {
+      toggleBoostForActiveTab(tabId, message.notify)
+        .then(sendResponse)
+        .catch((error) => {
+          sendResponse({
+            ok: false,
+            error: error instanceof Error ? error.message : String(error)
+          });
+        });
+      return true;
+    }
+
+    const streamIdPromise = Number.isInteger(tabId)
+      ? chrome.tabCapture.getMediaStreamId({ targetTabId: tabId })
+      : chrome.tabCapture.getMediaStreamId({});
+
+    streamIdPromise
+      .then((streamId) => toggleBoostForActiveTab(tabId, message.notify, streamId))
+      .catch(() => toggleBoostForActiveTab(tabId, message.notify, null, true))
+      .then(sendResponse)
+      .catch((error) => {
+        sendResponse({
+          ok: false,
+          error: error instanceof Error ? error.message : String(error)
+        });
+      });
+
+    return true;
   }
 
   handleMessage(message, sender)
@@ -93,20 +149,19 @@ async function handleMessage(message, sender) {
       return applyGainToAllActive(message.gain);
     case "SET_AUTO_ADAPT":
       return setAutoAdapt(message.autoAdapt);
-    case "TOGGLE_BOOST":
-      return toggleBoostForActiveTab(
-        message.tabId ?? sender?.tab?.id,
-        message.notify,
-        message.source ?? "message"
-      );
     case "OPEN_SHORTCUTS_PAGE":
       return openShortcutsPage();
+    case "SYNC_SHORTCUT_MODE":
+      return syncShortcutHandlingMode().then(async (bound) => {
+        await broadcastShortcutMode(bound);
+        return { ok: true, bound };
+      });
     default:
       throw new Error(`Unsupported message type: ${message.type}`);
   }
 }
 
-async function toggleBoostForActiveTab(tabId, notify = true, source = "unknown") {
+async function toggleBoostForActiveTab(tabId, notify = true, preStreamId = null, force = false) {
   let targetTabId = tabId;
 
   if (!Number.isInteger(targetTabId)) {
@@ -118,8 +173,8 @@ async function toggleBoostForActiveTab(tabId, notify = true, source = "unknown")
     throw new Error("没有找到当前标签页。");
   }
 
-  if (shouldSkipDuplicateToggle(targetTabId, source)) {
-    return { ok: true, skipped: true };
+  if (!force && shouldCoalesceShortcut(targetTabId)) {
+    return { ok: true };
   }
 
   return runToggleQueued(targetTabId, async () => {
@@ -134,20 +189,112 @@ async function toggleBoostForActiveTab(tabId, notify = true, source = "unknown")
     }
 
     const preferredGain = await getStoredDefaultGain();
-    return startBoost(targetTabId, preferredGain, notify);
+    return startBoost(targetTabId, preferredGain, notify, preStreamId);
   });
 }
 
-function shouldSkipDuplicateToggle(tabId, source) {
+function shouldCoalesceShortcut(tabId) {
   const now = Date.now();
-  const last = recentToggleAttempts.get(tabId);
+  const last = shortcutCoalesce.get(tabId);
 
-  if (last && now - last.time < TOGGLE_DEDUP_MS) {
+  if (last && now - last < SHORTCUT_COALESCE_MS) {
     return true;
   }
 
-  recentToggleAttempts.set(tabId, { time: now, source });
+  shortcutCoalesce.set(tabId, now);
   return false;
+}
+
+async function syncShortcutHandlingMode() {
+  const stored = await chrome.storage.sync.get({
+    [SHORTCUT_STORAGE_KEY]: DEFAULT_SHORTCUT
+  });
+  const desired = stored[SHORTCUT_STORAGE_KEY] || DEFAULT_SHORTCUT;
+  const commands = chrome.commands?.getAll ? await chrome.commands.getAll() : [];
+  const command = commands.find((item) => item.name === COMMAND_NAME);
+  const boundShortcut = command?.shortcut || "";
+  const useCommand =
+    Boolean(boundShortcut) &&
+    normalizeShortcut(boundShortcut) === normalizeShortcut(desired);
+
+  await chrome.storage.local.set({ [SHORTCUT_VIA_COMMAND_KEY]: useCommand });
+  return useCommand;
+}
+
+async function broadcastShortcutMode(shortcutViaCommand) {
+  const tabs = await chrome.tabs.query({ url: BILIBILI_URL_PATTERNS });
+
+  for (const tab of tabs) {
+    if (!Number.isInteger(tab.id)) {
+      continue;
+    }
+
+    try {
+      await chrome.tabs.sendMessage(tab.id, {
+        type: "BVB_SHORTCUT_MODE",
+        shortcutViaCommand
+      });
+    } catch (_error) {
+      // Ignore tabs without a ready content script.
+    }
+  }
+}
+
+async function tabHasContentScript(tabId) {
+  try {
+    const response = await chrome.tabs.sendMessage(tabId, { type: "BVB_PING" });
+    return response?.ok === true;
+  } catch (_error) {
+    return false;
+  }
+}
+
+async function injectContentScripts(tabId) {
+  await chrome.scripting.executeScript({
+    target: { tabId, allFrames: true },
+    files: CONTENT_SCRIPT_FILES
+  });
+}
+
+async function ensureBilibiliContentScripts() {
+  if (!chrome.scripting?.executeScript) {
+    return;
+  }
+
+  const tabs = await chrome.tabs.query({ url: BILIBILI_URL_PATTERNS });
+
+  for (const tab of tabs) {
+    if (!Number.isInteger(tab.id)) {
+      continue;
+    }
+
+    try {
+      if (!(await tabHasContentScript(tab.id))) {
+        await injectContentScripts(tab.id);
+      }
+    } catch (_error) {
+      // Ignore tabs that are still loading.
+    }
+  }
+}
+
+async function acquireCaptureStreamId(tabId) {
+  if (!Number.isInteger(tabId)) {
+    throw new Error("没有找到当前标签页。");
+  }
+
+  if (chrome.scripting?.executeScript) {
+    try {
+      await chrome.scripting.executeScript({
+        target: { tabId },
+        func: () => undefined
+      });
+    } catch (_error) {
+      // Fall through to tabCapture for the real error message.
+    }
+  }
+
+  return chrome.tabCapture.getMediaStreamId({ targetTabId: tabId });
 }
 
 function runToggleQueued(tabId, task) {
@@ -207,22 +354,20 @@ async function getStatus(tabId) {
   };
 }
 
-async function startBoost(tabId, gain, notify) {
+async function startBoost(tabId, gain, notify, preStreamId = null) {
   const tab = await getTab(tabId);
 
   if (!isBilibiliUrl(tab.url)) {
     throw new Error("Please open a bilibili.com page before enabling boost.");
   }
 
+  const streamId = preStreamId ?? await acquireCaptureStreamId(tabId);
+
   const autoAdapt = await getStoredAutoAdapt();
   const defaultGain = await getStoredDefaultGain();
   const captureGain = normalizeGain(gain ?? defaultGain);
 
   await ensureOffscreenDocument();
-
-  const streamId = await chrome.tabCapture.getMediaStreamId({
-    targetTabId: tabId
-  });
 
   const result = await sendToOffscreen({
     type: "START_CAPTURE",
@@ -430,7 +575,7 @@ function persistGain(gain) {
 
 async function getStoredAutoAdapt() {
   const result = await chrome.storage.sync.get({ autoAdapt: DEFAULT_AUTO_ADAPT });
-  return result.autoAdapt !== false;
+  return result.autoAdapt === true;
 }
 
 function normalizeGain(value) {

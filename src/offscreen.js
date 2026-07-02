@@ -79,7 +79,7 @@ async function startCapture(tabId, streamId, gain, autoAdapt) {
   analyser.connect(gainNode);
   gainNode.connect(context.destination);
 
-  const isAutoAdapt = autoAdapt !== false;
+  const isAutoAdapt = autoAdapt === true;
   const manualGain = normalizeGain(gain);
 
   const controller = {

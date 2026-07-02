@@ -29,6 +29,8 @@
     );
   }
 
+  const DEFAULT_SHORTCUT = "Alt+Shift+U";
+
   function formatShortcutLabel(shortcut) {
     if (!shortcut) {
       return "未设置";
@@ -144,6 +146,20 @@
     return true;
   }
 
+  function normalizeShortcut(shortcut) {
+    if (!shortcut) {
+      return "";
+    }
+
+    return shortcut
+      .split("+")
+      .map((part) => {
+        const trimmed = part.trim();
+        return trimmed.length === 1 ? trimmed.toUpperCase() : trimmed;
+      })
+      .join("+");
+  }
+
   function isValidShortcut(shortcut) {
     if (!shortcut) {
       return false;
@@ -177,9 +193,10 @@
   }
 
   globalThis.BvbShortcut = {
-    DEFAULT_SHORTCUT: "Alt+Shift+U",
+    DEFAULT_SHORTCUT,
     STORAGE_KEY: "customShortcut",
     COMMAND_NAME: "toggle-boost",
+    normalizeShortcut,
     supportsShortcutRecording,
     formatShortcutLabel,
     eventToShortcutString,

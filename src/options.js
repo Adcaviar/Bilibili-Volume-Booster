@@ -14,7 +14,7 @@ const {
 const DEFAULTS = {
   defaultGain: 2,
   notify: true,
-  autoAdapt: true,
+  autoAdapt: false,
   [STORAGE_KEY]: DEFAULT_SHORTCUT
 };
 
@@ -52,7 +52,7 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
   }
 
   if (changes.autoAdapt) {
-    autoAdaptInput.checked = changes.autoAdapt.newValue !== false;
+    autoAdaptInput.checked = changes.autoAdapt.newValue === true;
     return;
   }
 
@@ -148,7 +148,7 @@ async function init() {
   applySettings({
     defaultGain: defaultGainPercent,
     notify: stored.notify !== false,
-    autoAdapt: stored.autoAdapt !== false
+    autoAdapt: stored.autoAdapt === true
   });
   renderValues();
   await loadShortcutDisplay();
@@ -183,7 +183,7 @@ async function reloadStoredSettings() {
   );
 
   defaultGainInput.value = defaultGainPercent;
-  autoAdaptInput.checked = stored.autoAdapt !== false;
+  autoAdaptInput.checked = stored.autoAdapt === true;
   renderValues();
 }
 
@@ -283,10 +283,10 @@ async function saveShortcut(shortcut, showSavedStatus = true) {
 
   await chrome.storage.sync.set({ [STORAGE_KEY]: normalizedShortcut });
 
-  if (typeof chrome.commands?.update === "function") {
-    await chrome.commands.update({
-      name: COMMAND_NAME,
-      shortcut: normalizedShortcut
+  if (chrome.runtime?.sendMessage) {
+    await chrome.runtime.sendMessage({
+      target: "background",
+      type: "SYNC_SHORTCUT_MODE"
     });
   }
 

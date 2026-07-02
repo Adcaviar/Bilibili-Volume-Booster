@@ -8,7 +8,7 @@ const statusText = document.querySelector("#status");
 let activeTabId;
 let boostActive = false;
 let canBoost = false;
-let autoAdapt = true;
+let autoAdapt = false;
 let statusPollTimer = null;
 let isGainDragging = false;
 
@@ -22,7 +22,7 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
   }
 
   if (changes.autoAdapt) {
-    applyAutoAdaptState(changes.autoAdapt.newValue !== false, { refreshStatus: boostActive });
+    applyAutoAdaptState(changes.autoAdapt.newValue === true, { refreshStatus: boostActive });
     return;
   }
 
@@ -161,7 +161,7 @@ function applyStatus(status) {
   }
 
   boostActive = status.active;
-  autoAdapt = status.autoAdapt !== false;
+  autoAdapt = status.autoAdapt === true;
   autoAdaptInput.checked = autoAdapt;
 
   const displayGain = autoAdapt && status.active
@@ -183,7 +183,7 @@ function applyStatus(status) {
 }
 
 function applyAutoAdaptState(nextAutoAdapt, { refreshStatus = false } = {}) {
-  autoAdapt = nextAutoAdapt !== false;
+  autoAdapt = nextAutoAdapt === true;
   autoAdaptInput.checked = autoAdapt;
   updateGainControls();
   renderState();
