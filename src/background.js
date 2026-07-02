@@ -10,6 +10,9 @@ const SHORTCUT_STORAGE_KEY = "customShortcut";
 const SHORTCUTS_PAGE_URL = "chrome://extensions/shortcuts";
 
 const activeTabs = new Set();
+const toggleQueues = new Map();
+const recentToggleAttempts = new Map();
+const TOGGLE_DEDUP_MS = 80;
 let gainSaveTimer;
 
 chrome.runtime.onInstalled.addListener((details) => {
@@ -33,7 +36,9 @@ chrome.runtime.onInstalled.addListener((details) => {
 
 chrome.commands.onCommand.addListener((command) => {
   if (command === "toggle-boost") {
-    toggleBoostForActiveTab().catch(() => {});
+    toggleBoostForActiveTab(undefined, true, "command").catch((error) => {
+      console.error("Shortcut toggle failed:", error);
+    });
   }
 });
 
@@ -89,7 +94,11 @@ async function handleMessage(message, sender) {
     case "SET_AUTO_ADAPT":
       return setAutoAdapt(message.autoAdapt);
     case "TOGGLE_BOOST":
-      return toggleBoostForActiveTab(message.tabId ?? sender?.tab?.id, message.notify);
+      return toggleBoostForActiveTab(
+        message.tabId ?? sender?.tab?.id,
+        message.notify,
+        message.source ?? "message"
+      );
     case "OPEN_SHORTCUTS_PAGE":
       return openShortcutsPage();
     default:
@@ -97,7 +106,7 @@ async function handleMessage(message, sender) {
   }
 }
 
-async function toggleBoostForActiveTab(tabId, notify = true) {
+async function toggleBoostForActiveTab(tabId, notify = true, source = "unknown") {
   let targetTabId = tabId;
 
   if (!Number.isInteger(targetTabId)) {
@@ -109,18 +118,48 @@ async function toggleBoostForActiveTab(tabId, notify = true) {
     throw new Error("没有找到当前标签页。");
   }
 
-  const tab = await getTab(targetTabId);
-
-  if (!isBilibiliUrl(tab.url)) {
-    throw new Error("请先打开哔哩哔哩网页。");
+  if (shouldSkipDuplicateToggle(targetTabId, source)) {
+    return { ok: true, skipped: true };
   }
 
-  if (activeTabs.has(targetTabId)) {
-    return stopBoost(targetTabId, notify);
+  return runToggleQueued(targetTabId, async () => {
+    const tab = await getTab(targetTabId);
+
+    if (!isBilibiliUrl(tab.url)) {
+      throw new Error("请先打开哔哩哔哩网页。");
+    }
+
+    if (activeTabs.has(targetTabId)) {
+      return stopBoost(targetTabId, notify);
+    }
+
+    const preferredGain = await getStoredDefaultGain();
+    return startBoost(targetTabId, preferredGain, notify);
+  });
+}
+
+function shouldSkipDuplicateToggle(tabId, source) {
+  const now = Date.now();
+  const last = recentToggleAttempts.get(tabId);
+
+  if (last && now - last.time < TOGGLE_DEDUP_MS) {
+    return true;
   }
 
-  const preferredGain = await getStoredDefaultGain();
-  return startBoost(targetTabId, preferredGain, notify);
+  recentToggleAttempts.set(tabId, { time: now, source });
+  return false;
+}
+
+function runToggleQueued(tabId, task) {
+  const previous = toggleQueues.get(tabId) ?? Promise.resolve();
+  const next = previous.catch(() => {}).then(task);
+  toggleQueues.set(tabId, next);
+
+  return next.finally(() => {
+    if (toggleQueues.get(tabId) === next) {
+      toggleQueues.delete(tabId);
+    }
+  });
 }
 
 async function getStatus(tabId) {
@@ -201,7 +240,7 @@ async function startBoost(tabId, gain, notify) {
   );
 
   if (notify) {
-    await showBoostNotification(true, displayGain, tabId);
+    void showBoostNotification(true, displayGain, tabId);
   }
 
   return {
@@ -229,7 +268,7 @@ async function stopBoost(tabId, notify) {
   syncActiveTab(tabId, false);
 
   if (notify && wasActive) {
-    await showBoostNotification(false, undefined, tabId);
+    void showBoostNotification(false, undefined, tabId);
   }
 
   const defaultGain = await getStoredDefaultGain();
