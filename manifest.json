@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "哔哩哔哩音量增强-Bilibili Volume Booster",
-  "description": "AdCaviar",
-  "version": "0.0.2",
+  "description": "【哔哩哔哩网页音量增强：突破播放器 100% 上限，支持智能音量自适应与 1%–500% 手动调节，一键开关，专为听不清的视频而生。】",
+  "version": "0.0.3",
   "icons": {
     "16": "icons/icon16.png",
     "32": "icons/icon32.png",
